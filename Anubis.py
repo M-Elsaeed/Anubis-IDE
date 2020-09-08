@@ -88,7 +88,11 @@ class text_widget(QWidget):
     def itUI(self):
         global text
         text = QTextEdit()
-        Python_Coloring.PythonHighlighter(text)
+        if lang == "Python":
+            Python_Coloring.PythonHighlighter(text)
+        else:
+            # csharp coloring
+            Python_Coloring.PythonHighlighter(text)
         hbox = QHBoxLayout()
         hbox.addWidget(text)
         self.setLayout(hbox)
@@ -180,6 +184,10 @@ class Widget(QWidget):
         Final_Layout = QHBoxLayout(self)
         Final_Layout.addWidget(V_splitter)
 
+        # Adding language selection combobox.
+        ex_combo = languageCombo(self)
+        Final_Layout.addWidget(ex_combo)
+
         self.setLayout(Final_Layout)
 
     # defining a new Slot (takes string) to save the text inside the first text editor
@@ -227,6 +235,36 @@ def Openning(s):
     b = Signal()
     b.reading.connect(Widget.Open)
     b.reading.emit(s)
+
+
+lang = "Python"
+class languageCombo(QWidget):
+   def __init__(self, parent = None):
+      super(languageCombo, self).__init__(parent)
+      
+      layout = QHBoxLayout()
+      self.cb = QComboBox()
+      global lang
+      if lang == "Python":
+        self.cb.addItems(["Python", "C#"])
+      else:
+        self.cb.addItems(["C#", "Python"])
+      self.cb.currentIndexChanged.connect(self.selectionchange)
+		
+      layout.addWidget(self.cb)
+      self.setLayout(layout)
+      self.setWindowTitle("Language used")
+      self.setMaximumWidth(150)
+
+   def selectionchange(self,i):
+    global lang
+    if lang != self.cb.currentText():
+        lang = self.cb.currentText()
+        print(lang)
+        
+        global ex
+        ex = UI()
+        
 #
 #
 #
@@ -359,6 +397,7 @@ class UI(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    global ex
     ex = UI()
     # ex = Widget()
     sys.exit(app.exec_())

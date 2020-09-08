@@ -7,6 +7,8 @@ import sys
 import glob
 import serial
 
+from io import StringIO
+
 import Python_Coloring
 from PyQt5 import QtCore
 from PyQt5 import QtGui
@@ -69,6 +71,7 @@ class Signal(QObject):
 # Making text editor as A global variable (to solve the issue of being local to (self) in widget class)
 text = QTextEdit
 text2 = QTextEdit
+argsText = QLineEdit
 
 #
 #
@@ -88,11 +91,7 @@ class text_widget(QWidget):
     def itUI(self):
         global text
         text = QTextEdit()
-        if lang == "Python":
-            Python_Coloring.PythonHighlighter(text)
-        else:
-            # csharp coloring
-            Python_Coloring.PythonHighlighter(text)
+        Python_Coloring.PythonHighlighter(text)
         hbox = QHBoxLayout()
         hbox.addWidget(text)
         self.setLayout(hbox)
@@ -179,14 +178,24 @@ class Widget(QWidget):
         # I defined a new splitter to seperate between the upper and lower sides of the window
         V_splitter = QSplitter(Qt.Vertical)
         V_splitter.addWidget(H_splitter)
+
+        #adding arguments and their label
+        labelForArgs = QLabel(self)
+        labelForArgs.setText("Argumanets for your function comma separated, IN ORDER ex. for a declaraiton of def(a, b); the text should be '5, 6' where 5 is a and 6 is b")
+        V_splitter.addWidget(labelForArgs)
+        global argsText
+        argsText = QLineEdit(self)
+        V_splitter.addWidget(argsText)
+
+        labelForOut = QLabel(self)
+        labelForOut.setText("Output")
+        V_splitter.addWidget(labelForOut)
+
+
         V_splitter.addWidget(text2)
 
         Final_Layout = QHBoxLayout(self)
         Final_Layout.addWidget(V_splitter)
-
-        # Adding language selection combobox.
-        ex_combo = languageCombo(self)
-        Final_Layout.addWidget(ex_combo)
 
         self.setLayout(Final_Layout)
 
@@ -237,33 +246,6 @@ def Openning(s):
     b.reading.emit(s)
 
 
-lang = "Python"
-class languageCombo(QWidget):
-   def __init__(self, parent = None):
-      super(languageCombo, self).__init__(parent)
-      
-      layout = QHBoxLayout()
-      self.cb = QComboBox()
-      global lang
-      if lang == "Python":
-        self.cb.addItems(["Python", "C#"])
-      else:
-        self.cb.addItems(["C#", "Python"])
-      self.cb.currentIndexChanged.connect(self.selectionchange)
-		
-      layout.addWidget(self.cb)
-      self.setLayout(layout)
-      self.setWindowTitle("Language used")
-      self.setMaximumWidth(150)
-
-   def selectionchange(self,i):
-    global lang
-    if lang != self.cb.currentText():
-        lang = self.cb.currentText()
-        print(lang)
-        
-        global ex
-        ex = UI()
         
 #
 #
@@ -351,18 +333,53 @@ class UI(QMainWindow):
 
     ###########################        Start OF the Functions          ##################
     def Run(self):
-        if self.port_flag == 0:
-            mytext = text.toPlainText()
-        #
-        ##### Compiler Part
-        #
-#            ide.create_file(mytext)
-#            ide.upload_file(self.portNo)
-            text2.append("Sorry, there is no attached compiler.")
+        # def mm():
+        #     x = 5
+        #     y = 6
+        #     m = 5*6
+        #     print(m)
+        #     return m
 
+        codeToExec = text.toPlainText()
+        startIndex = codeToExec.find("def ")
+        if startIndex >= 0:
+            endFuncName = codeToExec.find("(", startIndex)
+            # endFuncDecl = codeToExec.find(")", startIndex)
+            funcName = codeToExec[startIndex+4:endFuncName]
+            # print(funcName)
+            funcCall = "\n\n" + funcName + "("
+            argsProvided = argsText.text().split(',')
+            
+            for i in argsProvided:
+                funcCall+= i + ","
+            funcCall = funcCall[0:len(funcCall) - 1]
+            funcCall += ')'
+            # print(funcCall)
+            try:
+                # capture output and errors
+                codeOut = StringIO()
+                codeErr = StringIO()
+                sys.stdout = codeOut
+                sys.stderr = codeErr
+                text2.append(exec(codeToExec + funcCall))
+                text2.append(codeOut.getvalue())
+                text2.append(codeErr.getvalue())
+                # restore stdout and stderr
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
+                codeOut.close()
+                codeErr.close()
+            except:
+                text2.append("Something went wrong, check your code")
         else:
-            text2.append("Please Select Your Port Number First")
-
+            text2.append("""
+            Write A single function Including its declaration.ex:
+            
+            def printingFunction(a, b):
+                    print(a, b)
+            
+            if the function has arguments, provide them in the box for arguments
+            """)
 
     # this function is made to get which port was selected by the user
     @QtCore.pyqtSlot()
@@ -397,7 +414,6 @@ class UI(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    global ex
     ex = UI()
     # ex = Widget()
     sys.exit(app.exec_())
